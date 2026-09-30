@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-labelledby="title desc">
+  <title id="title">Knowledge system</title>
+  <desc id="desc">Layered paper and folder shapes representing a personal knowledge system.</desc>
+  <rect width="760" height="240" fill="#f2eee8"/>
+  <path d="M88 54h300l34 30v106H88z" fill="#fff" stroke="#1c1917" stroke-width="4"/>
+  <path d="M122 84h244M122 116h174M122 148h210" stroke="#a69d92" stroke-width="6"/>
+  <path d="M410 77h182l36 34v79H410z" fill="#d8e3fb" stroke="#1c1917" stroke-width="4"/>
+  <path d="M446 111h116M446 143h74" stroke="#2563eb" stroke-width="7"/>
+  <circle cx="650" cy="55" r="22" fill="#2563eb"/><path d="M650 43v24M638 55h24" stroke="#fff" stroke-width="4"/>
+</svg>

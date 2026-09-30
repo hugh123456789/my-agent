@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-labelledby="title desc">
+  <title id="title">Product thinking</title>
+  <desc id="desc">A cobalt grid and geometric lines representing product thinking.</desc>
+  <rect width="760" height="240" fill="#e8eefb"/>
+  <path d="M0 40h760M0 80h760M0 120h760M0 160h760M0 200h760M40 0v240M80 0v240M120 0v240M160 0v240M200 0v240M240 0v240M280 0v240M320 0v240M360 0v240M400 0v240M440 0v240M480 0v240M520 0v240M560 0v240M600 0v240M640 0v240M680 0v240M720 0v240" stroke="#b9c9eb" stroke-width="1"/>
+  <path d="M78 172 202 60l108 82 140-99 156 118" fill="none" stroke="#1c1917" stroke-width="5"/>
+  <circle cx="202" cy="60" r="9" fill="#2563eb"/><circle cx="450" cy="43" r="9" fill="#2563eb"/><rect x="570" y="128" width="82" height="40" fill="#1c1917"/>
+</svg>

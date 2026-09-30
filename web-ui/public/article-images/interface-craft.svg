@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-labelledby="title desc">
+  <title id="title">Interface craft</title>
+  <desc id="desc">A monochrome interface wireframe with a cobalt detail marker.</desc>
+  <rect width="760" height="240" fill="#e9e7e2"/>
+  <rect x="74" y="40" width="612" height="160" fill="#fbfaf7" stroke="#1c1917" stroke-width="4"/>
+  <path d="M74 76h612M112 110h170M112 136h250M112 162h118" stroke="#756f66" stroke-width="6"/>
+  <rect x="466" y="104" width="160" height="54" fill="#d8e3fb" stroke="#1c1917" stroke-width="4"/>
+  <circle cx="505" cy="132" r="12" fill="#2563eb"/><path d="M535 126h62M535 139h42" stroke="#1c1917" stroke-width="5"/>
+</svg>

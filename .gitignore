@@ -1,0 +1,50 @@
+# Maven / Java build output
+target/
+*.class
+*.log
+.mvn/wrapper/maven-wrapper.jar
+
+# Spring Boot generated project metadata
+HELP.md
+
+# Frontend dependencies and build output
+node_modules/
+web-ui/dist/
+web-ui/coverage/
+
+# Runtime data and local workspaces
+sessions/
+.worktrees/
+.superpowers/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# IDEs and editor settings
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# NetBeans / Gradle
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+/build/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini

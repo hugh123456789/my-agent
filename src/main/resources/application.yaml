@@ -1,0 +1,55 @@
+spring:
+  config:
+    import: optional:classpath:bootstrap.yaml
+  application:
+    name: code-agent
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+server:
+  port: 18081
+
+agent:
+  provider: deepseek
+  models:
+    deepseek:
+      enabled: true
+      base-url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY:}
+      model-name: deepseek-v4-flash
+      return-thinking: true
+    zhipu:
+      enabled: false
+      base-url: https://open.bigmodel.cn/api/paas/v4
+      api-key: ${ZHIPU_API_KEY:}
+      model-name: glm-4.7-flash
+    ollama:
+      enabled: false
+      base-url: http://localhost:11434/v1/
+      model-name: qwen3.5:2b
+    minimax:
+      enabled: false
+      base-url: https://api.minimaxi.com/v1
+      api-key: ${MINIMAX_API_KEY:}
+      model-name: MiniMax-M2.7
+    nvidia:
+      enabled: false
+      base-url: https://integrate.api.nvidia.com/v1
+      api-key: ${NVIDIA_API_KEY:}
+      model-name: z-ai/glm5
+    modelscope:
+      enabled: false
+      base-url: https://api-inference.modelscope.cn/v1
+      api-key: ${MODELSCOPE_API_KEY:}
+      model-name: MiniMax/MiniMax-M3
+  sessions:
+    directory: ./sessions
+  hooks:
+    # 留空表示启用全部 Hook；也可按名称填写，例如：permission_hook,log_hook,todo_hook
+    enabled: ""
+
+#logging:
+#  level:
+#    dev.langchain4j: DEBUG
