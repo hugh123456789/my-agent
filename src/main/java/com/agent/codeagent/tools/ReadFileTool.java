@@ -8,6 +8,7 @@ import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonStringSchema;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,22 +20,41 @@ import java.util.List;
 public class ReadFileTool implements ToolRegistrar {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final FileVersionTracker versionTracker;
+
+    public ReadFileTool() {
+        this(new FileVersionTracker());
+    }
+
+    @Autowired
+    public ReadFileTool(FileVersionTracker versionTracker) {
+        this.versionTracker = versionTracker;
+    }
 
     public String execute(String argumentsJson) {
+        return execute(null, argumentsJson);
+    }
+
+    public String execute(String sessionId, String argumentsJson) {
         try {
             JsonNode input = objectMapper.readTree(argumentsJson);
             JsonNode filePath = input == null ? null : input.get("file_path");
             if (filePath == null || !filePath.isTextual() || filePath.asText().isBlank()) {
                 throw new IllegalArgumentException("缺少字符串参数 file_path");
             }
-            return readFile(filePath.asText());
+            return readFile(sessionId, filePath.asText());
         } catch (Exception error) {
             return "Error reading file: " + error.getMessage();
         }
     }
 
     public String readFile(String filePath) throws Exception {
+        return readFile(null, filePath);
+    }
+
+    public String readFile(String sessionId, String filePath) throws Exception {
         String content = Files.readString(Path.of(filePath), StandardCharsets.UTF_8);
+        versionTracker.recordRead(sessionId, Path.of(filePath));
         String[] lines = content.split("\\n", -1);
         StringBuilder numbered = new StringBuilder();
         for (int i = 0; i < lines.length; i++) {
@@ -57,6 +77,6 @@ public class ReadFileTool implements ToolRegistrar {
                                 .required(List.of("file_path"))
                                 .build())
                         .build(),
-                (sessionId, toolName, arguments) -> execute(arguments));
+                (sessionId, toolName, arguments) -> execute(sessionId, arguments));
     }
 }

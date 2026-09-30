@@ -8,6 +8,7 @@ import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonStringSchema;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,35 +20,63 @@ import java.util.List;
 public class EditFileTool implements ToolRegistrar {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final FileVersionTracker versionTracker;
+    private final FileWriteCoordinator writeCoordinator;
+
+    public EditFileTool() {
+        this(new FileVersionTracker(), new FileWriteCoordinator());
+    }
+
+    public EditFileTool(FileVersionTracker versionTracker) {
+        this(versionTracker, new FileWriteCoordinator());
+    }
+
+    @Autowired
+    public EditFileTool(FileVersionTracker versionTracker, FileWriteCoordinator writeCoordinator) {
+        this.versionTracker = versionTracker;
+        this.writeCoordinator = writeCoordinator;
+    }
 
     public String execute(String argumentsJson) {
+        return execute(null, argumentsJson);
+    }
+
+    public String execute(String sessionId, String argumentsJson) {
         try {
             JsonNode input = objectMapper.readTree(argumentsJson);
             String filePath = requiredText(input, "file_path");
             String oldString = requiredText(input, "old_string");
             String newString = requiredText(input, "new_string");
-            return editFile(filePath, oldString, newString);
+            return editFile(sessionId, filePath, oldString, newString);
         } catch (Exception error) {
             return "Error editing file: " + error.getMessage();
         }
     }
 
     public String editFile(String filePath, String oldString, String newString) throws Exception {
+        return editFile(null, filePath, oldString, newString);
+    }
+
+    public String editFile(String sessionId, String filePath, String oldString, String newString) throws Exception {
         Path path = Path.of(filePath);
-        String content = Files.readString(path, StandardCharsets.UTF_8);
-        String actualString = findActualString(content, oldString);
-        if (actualString == null) {
-            return "Error: old_string not found in " + filePath;
-        }
+        return writeCoordinator.withExclusiveWrite(path, () -> {
+            versionTracker.requireUnchanged(sessionId, path);
+            String content = Files.readString(path, StandardCharsets.UTF_8);
+            String actualString = findActualString(content, oldString);
+            if (actualString == null) {
+                return "Error: old_string not found in " + filePath;
+            }
 
-        int count = content.split(actualString, -1).length - 1;
-        if (count > 1) {
-            return "Error: old_string found " + count + " times in " + filePath + ". Must be unique.";
-        }
+            int count = content.split(actualString, -1).length - 1;
+            if (count > 1) {
+                return "Error: old_string found " + count + " times in " + filePath + ". Must be unique.";
+            }
 
-        String updated = String.join(newString, content.split(actualString, -1));
-        Files.writeString(path, updated, StandardCharsets.UTF_8);
-        return "Successfully edited " + filePath;
+            String updated = String.join(newString, content.split(actualString, -1));
+            Files.writeString(path, updated, StandardCharsets.UTF_8);
+            versionTracker.recordWritten(sessionId, path);
+            return "Successfully edited " + filePath;
+        });
     }
 
     private String findActualString(String fileContent, String searchString) {
@@ -85,6 +114,6 @@ public class EditFileTool implements ToolRegistrar {
                                 .required(List.of("file_path", "old_string", "new_string"))
                                 .build())
                         .build(),
-                (sessionId, toolName, arguments) -> execute(arguments));
+                (sessionId, toolName, arguments) -> execute(sessionId, arguments));
     }
 }

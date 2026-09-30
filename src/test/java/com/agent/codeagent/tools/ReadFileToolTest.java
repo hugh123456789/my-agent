@@ -15,7 +15,8 @@ class ReadFileToolTest {
         Path file = Files.createTempFile("read-file-tool", ".txt");
         Files.writeString(file, "第一行\nsecond line");
 
-        String result = new ReadFileTool().execute(
+        String result = new ReadFileTool(new FileVersionTracker()).execute(
+                "session-a",
                 "{\"file_path\":\"" + file.toString().replace("\\", "\\\\") + "\"}");
 
         assertEquals("   1 | 第一行\n   2 | second line", result);

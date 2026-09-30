@@ -24,6 +24,26 @@ class WriteFileToolTest {
         assertEquals("hello\n世界", Files.readString(file));
     }
 
+    @Test
+    void returnsErrorWhenRequiredArgumentIsMissing() {
+        String result = new WriteFileTool().execute("{\"file_path\":\"file.txt\"}");
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.startsWith("Error writing file:"));
+    }
+
+    @Test
+    void refusesToOverwriteExistingFileWithoutReadingItFirst() throws Exception {
+        Path file = tempDir.resolve("existing.txt");
+        Files.writeString(file, "original");
+        WriteFileTool writer = new WriteFileTool(new FileVersionTracker());
+
+        String result = writer.execute("session-a", "{\"file_path\":\"" + path(file)
+                + "\",\"content\":\"replacement\"}");
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.contains("must be read first"));
+        assertEquals("original", Files.readString(file));
+    }
+
     private static String path(Path path) {
         return path.toString().replace("\\", "\\\\");
     }

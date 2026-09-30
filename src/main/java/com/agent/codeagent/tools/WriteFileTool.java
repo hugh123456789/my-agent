@@ -8,6 +8,7 @@ import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonStringSchema;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,17 +20,43 @@ import java.util.List;
 public class WriteFileTool implements ToolRegistrar {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final FileVersionTracker versionTracker;
+    private final FileWriteCoordinator writeCoordinator;
+
+    public WriteFileTool() {
+        this(new FileVersionTracker(), new FileWriteCoordinator());
+    }
+
+    public WriteFileTool(FileVersionTracker versionTracker) {
+        this(versionTracker, new FileWriteCoordinator());
+    }
+
+    @Autowired
+    public WriteFileTool(FileVersionTracker versionTracker, FileWriteCoordinator writeCoordinator) {
+        this.versionTracker = versionTracker;
+        this.writeCoordinator = writeCoordinator;
+    }
 
     public String execute(String argumentsJson) {
+        return execute(null, argumentsJson);
+    }
+
+    public String execute(String sessionId, String argumentsJson) {
         try {
             JsonNode input = objectMapper.readTree(argumentsJson);
             String filePath = requiredText(input, "file_path");
             String content = requiredText(input, "content");
             Path path = Path.of(filePath);
-            Path parent = path.getParent();
-            if (parent != null) Files.createDirectories(parent);
-            Files.writeString(path, content, StandardCharsets.UTF_8);
-            return "Successfully wrote to " + filePath;
+            return writeCoordinator.withExclusiveWrite(path, () -> {
+                if (Files.exists(path)) {
+                    versionTracker.requireUnchanged(sessionId, path);
+                }
+                Path parent = path.getParent();
+                if (parent != null) Files.createDirectories(parent);
+                Files.writeString(path, content, StandardCharsets.UTF_8);
+                versionTracker.recordWritten(sessionId, path);
+                return "Successfully wrote to " + filePath;
+            });
         } catch (Exception error) {
             return "Error writing file: " + error.getMessage();
         }
@@ -55,6 +82,6 @@ public class WriteFileTool implements ToolRegistrar {
                                 .required(List.of("file_path", "content"))
                                 .build())
                         .build(),
-                (sessionId, toolName, arguments) -> execute(arguments));
+                (sessionId, toolName, arguments) -> execute(sessionId, arguments));
     }
 }
