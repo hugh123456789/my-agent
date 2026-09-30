@@ -2,7 +2,6 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { BriefcaseBusiness, FileText, House, Menu, Moon, Sun, UserRound, X } from '@lucide/vue'
-import BrandMark from './BrandMark.vue'
 
 defineProps({ isDark: Boolean, open: Boolean })
 defineEmits(['toggle-theme', 'toggle-menu'])
@@ -45,7 +44,6 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 
 <template>
   <header class="site-header" :class="{ 'is-visible': visible }">
-    <RouterLink class="brand" to="/" aria-label="返回首页"><BrandMark /><span class="brand-copy"><strong></strong><small></small></span></RouterLink>
     <nav class="desktop-nav" aria-label="主导航">
       <RouterLink v-for="(item, index) in navItems" :key="item.label" :aria-label="item.label" :to="`/${anchors[index] === 'home' ? '' : anchors[index]}`"><component :is="item.icon" class="nav-icon" :size="16" :stroke-width="1.8" /></RouterLink>
       <span class="nav-indicator" :style="{ '--nav-index': activeIndex }" aria-hidden="true"></span>

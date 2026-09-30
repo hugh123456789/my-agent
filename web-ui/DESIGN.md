@@ -25,7 +25,7 @@ rounded:
   control: "0"
   social: "50%"
 spacing:
-  page-gutter: "64px"
+  page-gutter: "40px"
   section: "72px"
   card: "22px"
 components:
@@ -59,7 +59,7 @@ Desktop uses a 12-column-inspired asymmetric composition: a compact visual ancho
 
 ## Elevation & Depth
 
-Static surfaces are flat. Depth comes from borders, offset lime shadows on the avatar and article hover state, and concentric linework in the hero background.
+Static surfaces are flat. Depth comes from borders, restrained shadows, the small hover lift, and concentric linework in the hero background.
 
 ## Shapes
 

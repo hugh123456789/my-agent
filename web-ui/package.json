@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/services/*.test.js src/homeState.test.js src/articleData.test.js"
+    "test": "node --test src/services/*.test.js src/homeState.test.js src/articleData.test.js src/dither.test.js"
   },
   "dependencies": {
     "@fontsource/maple-mono": "^5.2.6",
