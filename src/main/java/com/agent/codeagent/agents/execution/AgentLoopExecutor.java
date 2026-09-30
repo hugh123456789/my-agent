@@ -123,7 +123,8 @@ public class AgentLoopExecutor {
 
         String reminder = (String) hookRegistry.triggerHooks(
                 HookEvent.BEFORE_ROUND, context.sessionId(), null, null);
-        SystemPromptComposer.ComposedPrompt prompt = promptComposer.compose(reminder);
+        SystemPromptComposer.ComposedPrompt prompt = promptComposer.compose(
+                reminder, String.join(", ", toolDispatcher.getDeferredToolNames()));
         List<ChatMessage> requestMessages = context.snapshotForRequest(prompt.systemPrompt());
         if (prompt.reminder() != null && !sink.isCancelled()) {
             sink.next(new AgentEvent.Reminder(prompt.reminder()));
@@ -131,7 +132,7 @@ public class AgentLoopExecutor {
 
         ChatRequest request = ChatRequest.builder()
                 .messages(requestMessages)
-                .toolSpecifications(toolDispatcher.getSpecifications())
+                .toolSpecifications(toolDispatcher.getActiveToolDefinitions(context.sessionId()))
                 .build();
 
         mainStreamingChatModel.chat(request, ModelStreamAdapter.handler(

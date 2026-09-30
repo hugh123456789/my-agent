@@ -85,7 +85,7 @@ public final class SubAgentRunner {
                         HookEvent.BEFORE_ROUND, sessionId, null, null);
                 ChatRequest request = ChatRequest.builder()
                         .messages(context.snapshotForRequest(reminder))
-                        .toolSpecifications(toolDispatcher.getSpecifications())
+                        .toolSpecifications(toolDispatcher.getActiveToolDefinitions(sessionId))
                         .build();
                 ChatResponse response = model.chat(request);
                 AiMessage aiMessage = response.aiMessage();

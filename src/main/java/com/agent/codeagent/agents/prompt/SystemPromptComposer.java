@@ -26,7 +26,15 @@ public final class SystemPromptComposer {
     }
 
     public ComposedPrompt compose(String reminder) {
-        return new ComposedPrompt(combine(BASE_SYSTEM_PROMPT, skillLoader.systemPrompt(), reminder), reminder);
+        return compose(reminder, "");
+    }
+
+    public ComposedPrompt compose(String reminder, String deferredToolNames) {
+        String deferredPrompt = deferredToolNames == null || deferredToolNames.isBlank()
+                ? ""
+                : "Deferred tools available through tool_search: " + deferredToolNames;
+        return new ComposedPrompt(combine(BASE_SYSTEM_PROMPT, deferredPrompt,
+                skillLoader.systemPrompt(), reminder), reminder);
     }
 
     private static String combine(String... fragments) {

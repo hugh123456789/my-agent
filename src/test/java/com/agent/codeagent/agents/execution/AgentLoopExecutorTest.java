@@ -24,7 +24,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -43,7 +46,7 @@ class AgentLoopExecutorTest {
                 });
         HookRegistry hooks = new HookRegistry(List.of());
         SystemPromptComposer promptComposer = mock(SystemPromptComposer.class);
-        when(promptComposer.compose(null))
+        when(promptComposer.compose(null, ""))
                 .thenReturn(new SystemPromptComposer.ComposedPrompt("system", null));
         AgentLoopExecutor executor = new AgentLoopExecutor(model, dispatcher, hooks, promptComposer,
                 new SessionService(new JsonlConversationStore(Files.createTempDirectory("agent-sessions"))),
@@ -88,6 +91,54 @@ class AgentLoopExecutorTest {
                         Files.createTempDirectory("agent-sessions"))),
                 new ToolCallProcessor(toolDispatcher, hookRegistry),
                 new ApprovalManager(60_000)));
+    }
+
+    @Test
+    void sendsActivatedDeferredSchemaOnTheNextApiCall() throws Exception {
+        StreamingChatModel model = mock(StreamingChatModel.class);
+        ToolDispatcher dispatcher = new ToolDispatcher();
+        dispatcher.register(ToolSpecification.builder().name("rare_tool").description("rare operation")
+                        .parameters(dev.langchain4j.model.chat.request.json.JsonObjectSchema.builder().build())
+                        .build(), (session, name, arguments) -> "rare result");
+        dispatcher.markDeferred(List.of("rare_tool"));
+        dispatcher.registerToolSearch();
+        HookRegistry hooks = new HookRegistry(List.of());
+        SystemPromptComposer promptComposer = mock(SystemPromptComposer.class);
+        when(promptComposer.compose(any(), eq("rare_tool")))
+                .thenReturn(new SystemPromptComposer.ComposedPrompt("system", null));
+        SessionService sessions = new SessionService(new JsonlConversationStore(
+                Files.createTempDirectory("agent-sessions")));
+        AgentLoopExecutor executor = new AgentLoopExecutor(model, dispatcher, hooks, promptComposer,
+                sessions, new ToolCallProcessor(dispatcher, hooks), new ApprovalManager(60_000));
+        AtomicInteger calls = new AtomicInteger();
+        AtomicReference<List<ToolSpecification>> firstDefinitions = new AtomicReference<>();
+        AtomicReference<List<ToolSpecification>> secondDefinitions = new AtomicReference<>();
+        doAnswer(invocation -> {
+            ChatRequest request = invocation.getArgument(0, ChatRequest.class);
+            if (calls.getAndIncrement() == 0) {
+                firstDefinitions.set(request.toolSpecifications());
+                ToolExecutionRequest search = ToolExecutionRequest.builder()
+                        .id("search-1").name("tool_search").arguments("{\"query\":\"rare\"}").build();
+                invocation.getArgument(1, dev.langchain4j.model.chat.response.StreamingChatResponseHandler.class)
+                        .onCompleteResponse(ChatResponse.builder()
+                                .aiMessage(AiMessage.from(List.of(search)))
+                                .finishReason(FinishReason.TOOL_EXECUTION).build());
+            } else {
+                secondDefinitions.set(request.toolSpecifications());
+                invocation.getArgument(1, dev.langchain4j.model.chat.response.StreamingChatResponseHandler.class)
+                        .onCompleteResponse(ChatResponse.builder()
+                                .aiMessage(AiMessage.from("done"))
+                                .finishReason(FinishReason.STOP).build());
+            }
+            return null;
+        }).when(model).chat(any(ChatRequest.class), any());
+
+        executor.execute("session-a", "find a rare tool").collectList().block();
+
+        assertTrue(firstDefinitions.get().stream().anyMatch(spec -> spec.name().equals("tool_search")));
+        assertFalse(firstDefinitions.get().stream().anyMatch(spec -> spec.name().equals("rare_tool")));
+        assertTrue(secondDefinitions.get().stream().anyMatch(spec -> spec.name().equals("rare_tool")));
+        assertTrue(secondDefinitions.get().stream().anyMatch(spec -> spec.parameters() != null));
     }
 
     @Test

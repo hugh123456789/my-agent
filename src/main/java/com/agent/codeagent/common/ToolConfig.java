@@ -24,7 +24,17 @@ public class ToolConfig {
         ToolDispatcher dispatcher = new ToolDispatcher();
         tools.stream()
                 .filter(tool -> !subAgent || tool.availableToSubAgent())
-                .forEach(tool -> tool.register(dispatcher));
+                .forEach(tool -> {
+                    int before = dispatcher.getSpecifications().size();
+                    tool.register(dispatcher);
+                    if (tool.deferred()) {
+                        dispatcher.markDeferred(dispatcher.getSpecifications().subList(before,
+                                dispatcher.getSpecifications().size()).stream()
+                                .map(dev.langchain4j.agent.tool.ToolSpecification::name)
+                                .toList());
+                    }
+                });
+        dispatcher.registerToolSearch();
         return dispatcher;
     }
 }

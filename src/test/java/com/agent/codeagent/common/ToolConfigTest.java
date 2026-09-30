@@ -36,7 +36,7 @@ class ToolConfigTest {
         ToolDispatcher dispatcher = config.mainToolDispatcher(toolRegistrars());
 
         assertEquals(Set.of("bash", "getCurrentDateTime", "getCurrentDate",
-                "getCurrentTime", "todo_write", "task"), names(dispatcher));
+                "getCurrentTime", "todo_write", "task", "tool_search"), names(dispatcher));
     }
 
     @Test
@@ -45,7 +45,7 @@ class ToolConfigTest {
         ToolDispatcher dispatcher = config.subAgentToolDispatcher(toolRegistrars());
 
         assertEquals(Set.of("bash", "getCurrentDateTime", "getCurrentDate",
-                "getCurrentTime", "todo_write"),
+                "getCurrentTime", "todo_write", "tool_search"),
                 names(dispatcher));
     }
 
@@ -57,6 +57,19 @@ class ToolConfigTest {
 
         assertNotSame(main, sub);
         assertNotEquals(names(main), names(sub));
+    }
+
+    @Test
+    void hidesDeferredDateTimeToolsUntilSessionActivatesThem() {
+        ToolDispatcher dispatcher = new ToolConfig().mainToolDispatcher(toolRegistrars());
+
+        assertEquals(Set.of("bash", "todo_write", "task", "tool_search"),
+                names(dispatcher, "session-a"));
+
+        dispatcher.activateTools("session-a", List.of("getCurrentTime"));
+
+        assertTrue(names(dispatcher, "session-a").contains("getCurrentTime"));
+        assertTrue(!names(dispatcher, "session-b").contains("getCurrentTime"));
     }
 
     @Test
@@ -99,6 +112,12 @@ class ToolConfigTest {
 
     private Set<String> names(ToolDispatcher dispatcher) {
         return dispatcher.getSpecifications().stream()
+                .map(ToolSpecification::name)
+                .collect(Collectors.toSet());
+    }
+
+    private Set<String> names(ToolDispatcher dispatcher, String sessionId) {
+        return dispatcher.getActiveToolDefinitions(sessionId).stream()
                 .map(ToolSpecification::name)
                 .collect(Collectors.toSet());
     }

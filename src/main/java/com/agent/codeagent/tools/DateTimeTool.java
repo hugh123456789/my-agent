@@ -16,6 +16,11 @@ import java.time.format.DateTimeFormatter;
 public class DateTimeTool implements ToolRegistrar {
 
     @Override
+    public boolean deferred() {
+        return true;
+    }
+
+    @Override
     public void register(ToolDispatcher dispatcher) {
         dispatcher.register(specification("getCurrentDateTime", "获取当前的日期和时间"),
                 (sessionId, toolName, arguments) -> getCurrentDateTime());

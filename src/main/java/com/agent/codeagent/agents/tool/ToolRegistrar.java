@@ -5,6 +5,11 @@ public interface ToolRegistrar {
 
     void register(ToolDispatcher dispatcher);
 
+    /** Whether the specifications registered by this registrar are hidden until searched. */
+    default boolean deferred() {
+        return false;
+    }
+
     default boolean availableToSubAgent() {
         return true;
     }
