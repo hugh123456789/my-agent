@@ -25,6 +25,11 @@ public class GrepSearchTool implements ToolRegistrar {
     private static final int MAX_RESULTS = 100;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Override
+    public boolean isConcurrencySafe() {
+        return true;
+    }
+
     public String execute(String argumentsJson) {
         try {
             JsonNode input = objectMapper.readTree(argumentsJson);

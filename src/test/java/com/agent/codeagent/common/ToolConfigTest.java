@@ -31,6 +31,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ToolConfigTest {
 
     @Test
+    void propagatesRegistrarConcurrencySafetyToDispatcher() {
+        ToolRegistrar safeRegistrar = new ToolRegistrar() {
+            @Override
+            public boolean isConcurrencySafe() {
+                return true;
+            }
+
+            @Override
+            public void register(ToolDispatcher dispatcher) {
+                dispatcher.register(ToolSpecification.builder().name("safe").description("safe").build(),
+                        (session, name, arguments) -> "ok");
+            }
+        };
+
+        ToolDispatcher dispatcher = new ToolConfig().mainToolDispatcher(List.of(safeRegistrar));
+
+        assertTrue(dispatcher.isConcurrencySafe("safe"));
+    }
+
+    @Test
     void mainToolSetContainsAllMainTools() {
         ToolConfig config = new ToolConfig();
         ToolDispatcher dispatcher = config.mainToolDispatcher(toolRegistrars());

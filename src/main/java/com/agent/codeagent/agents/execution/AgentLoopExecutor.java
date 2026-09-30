@@ -29,8 +29,11 @@ import reactor.core.publisher.FluxSink;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
-/** Owns the ReAct loop and delegates tools and approvals to focused services. */
+/**
+ * Owns the ReAct loop and delegates tools and approvals to focused services.
+ */
 @Service
 public class AgentLoopExecutor {
 
@@ -44,6 +47,7 @@ public class AgentLoopExecutor {
     private final SessionService sessionService;
     private final ApprovalManager approvalManager;
     private final ToolCallProcessor toolCallProcessor;
+    private final ToolExecutionScheduler toolExecutionScheduler;
 
     @Autowired
     public AgentLoopExecutor(
@@ -61,9 +65,12 @@ public class AgentLoopExecutor {
         this.sessionService = sessionService;
         this.toolCallProcessor = toolCallProcessor;
         this.approvalManager = approvalManager;
+        this.toolExecutionScheduler = new ToolExecutionScheduler(toolDispatcher, toolCallProcessor);
     }
 
-    /** Compatibility constructor for callers that still assemble the executor directly. */
+    /**
+     * Compatibility constructor for callers that still assemble the executor directly.
+     */
     public AgentLoopExecutor(
             StreamingChatModel mainStreamingChatModel,
             @Qualifier("mainToolDispatcher") ToolDispatcher toolDispatcher,
@@ -79,6 +86,7 @@ public class AgentLoopExecutor {
         this.sessionService = sessionService;
         this.toolCallProcessor = toolCallProcessor;
         this.approvalManager = approvalManager;
+        this.toolExecutionScheduler = new ToolExecutionScheduler(toolDispatcher, toolCallProcessor);
     }
 
 
@@ -170,39 +178,54 @@ public class AgentLoopExecutor {
                                      List<ToolExecutionRequest> requests,
                                      FluxSink<AgentEvent> sink,
                                      LoopState state) {
-        for (int i = 0; i < requests.size(); i++) {
+        int index = 0;
+        while (index < requests.size()) {
             if (sink.isCancelled()) return;
-            try {
-                state.nextToolCall();
-            } catch (IllegalStateException error) {
-                finishWithError(context, sink, error);
-                return;
-            }
-
-            ToolExecutionRequest request = requests.get(i);
-            ToolProcessResult result = toolCallProcessor.process(context.sessionId(), request);
-            switch (result.status()) {
-                case ALLOWED -> {
-                    context.add(ToolExecutionResultMessage.from(request, result.content()));
-                    sink.next(new AgentEvent.ToolResultDelta(
-                            request.id(), request.name(), result.content()));
-                }
-                case DENIED -> {
-                    context.add(ToolExecutionResultMessage.from(
-                            request, "Permission denied: " + result.reason()));
-                    sink.next(new AgentEvent.PermissionDenied(
-                            request.name(), result.reason()));
-                }
-                case REQUIRES_APPROVAL -> {
-                    List<ToolExecutionRequest> remaining = new ArrayList<>(
-                            requests.subList(i, requests.size()));
-                    String requestId = approvalManager.suspend(
-                            context, remaining, state, sink);
-                    sink.next(new AgentEvent.PermissionRequired(
-                            requestId, request.name(), request.arguments(), result.reason()));
+            int end = toolExecutionScheduler.nextBatchEnd(requests, index);
+            List<ToolExecutionRequest> batch = requests.subList(index, end);
+            for (int i = 0; i < batch.size(); i++) {
+                try {
+                    state.nextToolCall();
+                } catch (IllegalStateException error) {
+                    finishWithError(context, sink, error);
                     return;
                 }
             }
+
+            List<ToolProcessResult> results;
+            try {
+                results = toolExecutionScheduler.execute(context.sessionId(), batch);
+            } catch (CompletionException error) {
+                finishWithError(context, sink, error.getCause() == null ? error : error.getCause());
+                return;
+            }
+            for (int i = 0; i < batch.size(); i++) {
+                ToolExecutionRequest request = batch.get(i);
+                ToolProcessResult result = results.get(i);
+                switch (result.status()) {
+                    case ALLOWED -> {
+                        context.add(ToolExecutionResultMessage.from(request, result.content()));
+                        sink.next(new AgentEvent.ToolResultDelta(
+                                request.id(), request.name(), result.content()));
+                    }
+                    case DENIED -> {
+                        context.add(ToolExecutionResultMessage.from(
+                                request, "Permission denied: " + result.reason()));
+                        sink.next(new AgentEvent.PermissionDenied(
+                                request.name(), result.reason()));
+                    }
+                    case REQUIRES_APPROVAL -> {
+                        List<ToolExecutionRequest> remaining = new ArrayList<>(
+                                requests.subList(i, requests.size()));
+                        String requestId = approvalManager.suspend(
+                                context, remaining, state, sink);
+                        sink.next(new AgentEvent.PermissionRequired(
+                                requestId, request.name(), request.arguments(), result.reason()));
+                        return;
+                    }
+                }
+            }
+            index = end;
         }
         runLoop(context, sink, state);
     }

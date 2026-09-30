@@ -23,7 +23,9 @@ public class ToolDispatcher implements ToolExecutor {
     private final List<ToolSpecification> specifications = new ArrayList<>();
     private final Set<String> deferredToolNames = new LinkedHashSet<>();
     private final Map<String, Set<String>> activatedToolsBySession = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> concurrencySafeByTool = new LinkedHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private boolean currentRegistrarConcurrencySafe;
 
     /**
      * 注册一个工具。
@@ -32,8 +34,22 @@ public class ToolDispatcher implements ToolExecutor {
      * @param executor 工具执行逻辑
      */
     public void register(ToolSpecification spec, ToolExecutor executor) {
+        register(spec, executor, currentRegistrarConcurrencySafe);
+    }
+
+    public void register(ToolSpecification spec, ToolExecutor executor, boolean concurrencySafe) {
         specifications.add(spec);
         executors.put(spec.name(), executor);
+        concurrencySafeByTool.put(spec.name(), concurrencySafe);
+    }
+
+    /** Sets the safety metadata inherited by registrations made by one registrar. */
+    public void setCurrentRegistrarConcurrencySafe(boolean concurrencySafe) {
+        currentRegistrarConcurrencySafe = concurrencySafe;
+    }
+
+    public boolean isConcurrencySafe(String toolName) {
+        return concurrencySafeByTool.getOrDefault(toolName, false);
     }
 
     public void markDeferred(List<String> names) {

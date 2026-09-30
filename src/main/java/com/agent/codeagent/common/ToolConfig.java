@@ -26,7 +26,12 @@ public class ToolConfig {
                 .filter(tool -> !subAgent || tool.availableToSubAgent())
                 .forEach(tool -> {
                     int before = dispatcher.getSpecifications().size();
-                    tool.register(dispatcher);
+                    dispatcher.setCurrentRegistrarConcurrencySafe(tool.isConcurrencySafe());
+                    try {
+                        tool.register(dispatcher);
+                    } finally {
+                        dispatcher.setCurrentRegistrarConcurrencySafe(false);
+                    }
                     if (tool.deferred()) {
                         dispatcher.markDeferred(dispatcher.getSpecifications().subList(before,
                                 dispatcher.getSpecifications().size()).stream()

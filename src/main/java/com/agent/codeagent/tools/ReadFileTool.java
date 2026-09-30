@@ -31,6 +31,11 @@ public class ReadFileTool implements ToolRegistrar {
         this.versionTracker = versionTracker;
     }
 
+    @Override
+    public boolean isConcurrencySafe() {
+        return true;
+    }
+
     public String execute(String argumentsJson) {
         return execute(null, argumentsJson);
     }

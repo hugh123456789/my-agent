@@ -13,4 +13,9 @@ public interface ToolRegistrar {
     default boolean availableToSubAgent() {
         return true;
     }
+
+    /** Whether all tools registered by this registrar may execute concurrently. */
+    default boolean isConcurrencySafe() {
+        return false;
+    }
 }

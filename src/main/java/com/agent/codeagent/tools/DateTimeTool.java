@@ -16,6 +16,11 @@ import java.time.format.DateTimeFormatter;
 public class DateTimeTool implements ToolRegistrar {
 
     @Override
+    public boolean isConcurrencySafe() {
+        return true;
+    }
+
+    @Override
     public boolean deferred() {
         return true;
     }

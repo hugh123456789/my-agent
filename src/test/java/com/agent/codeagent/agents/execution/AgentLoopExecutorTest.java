@@ -21,6 +21,8 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,6 +35,62 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentLoopExecutorTest {
+
+    @Test
+    void executesAdjacentConcurrencySafeToolsInParallel() throws Exception {
+        StreamingChatModel model = mock(StreamingChatModel.class);
+        ToolDispatcher dispatcher = new ToolDispatcher();
+        CountDownLatch started = new CountDownLatch(2);
+        CountDownLatch release = new CountDownLatch(1);
+        dispatcher.register(ToolSpecification.builder().name("safe-a").description("safe").build(),
+                (session, name, arguments) -> awaitTool(started, release), true);
+        dispatcher.register(ToolSpecification.builder().name("safe-b").description("safe").build(),
+                (session, name, arguments) -> awaitTool(started, release), true);
+        HookRegistry hooks = new HookRegistry(List.of());
+        SystemPromptComposer promptComposer = mock(SystemPromptComposer.class);
+        when(promptComposer.compose(null, ""))
+                .thenReturn(new SystemPromptComposer.ComposedPrompt("system", null));
+        AgentLoopExecutor executor = new AgentLoopExecutor(model, dispatcher, hooks, promptComposer,
+                new SessionService(new JsonlConversationStore(Files.createTempDirectory("agent-sessions"))),
+                new ToolCallProcessor(dispatcher, hooks), new ApprovalManager(60_000));
+
+        AtomicInteger calls = new AtomicInteger();
+        doAnswer(invocation -> {
+            var handler = invocation.getArgument(1, dev.langchain4j.model.chat.response.StreamingChatResponseHandler.class);
+            if (calls.getAndIncrement() == 0) {
+                handler.onCompleteResponse(ChatResponse.builder()
+                        .aiMessage(AiMessage.from(List.of(
+                                ToolExecutionRequest.builder().id("a").name("safe-a").arguments("{}").build(),
+                                ToolExecutionRequest.builder().id("b").name("safe-b").arguments("{}").build())))
+                        .finishReason(FinishReason.TOOL_EXECUTION).build());
+            } else {
+                handler.onCompleteResponse(ChatResponse.builder()
+                        .aiMessage(AiMessage.from("done"))
+                        .finishReason(FinishReason.STOP).build());
+            }
+            return null;
+        }).when(model).chat(any(ChatRequest.class), any());
+
+        CountDownLatch completed = new CountDownLatch(1);
+        executor.execute("session", "run both")
+                .collectList()
+                .doFinally(signal -> completed.countDown())
+                .subscribe();
+        assertTrue(started.await(2, TimeUnit.SECONDS));
+        release.countDown();
+        assertTrue(completed.await(2, TimeUnit.SECONDS));
+    }
+
+    private static String awaitTool(CountDownLatch started, CountDownLatch release) {
+        started.countDown();
+        try {
+            assertTrue(release.await(2, TimeUnit.SECONDS));
+            return "ok";
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(error);
+        }
+    }
 
     @Test
     void passesConversationSessionToNormalToolExecution() throws Exception {

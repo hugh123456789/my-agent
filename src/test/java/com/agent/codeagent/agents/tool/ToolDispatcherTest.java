@@ -13,6 +13,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ToolDispatcherTest {
 
     @Test
+    void registrarConcurrencySafetyDefaultsToFalse() {
+        ToolRegistrar registrar = dispatcher -> { };
+
+        assertEquals(false, registrar.isConcurrencySafe());
+    }
+
+    @Test
+    void recordsConcurrencySafetyForRegisteredTool() {
+        ToolDispatcher dispatcher = new ToolDispatcher();
+        ToolSpecification safe = ToolSpecification.builder().name("safe").description("safe").build();
+        ToolSpecification unsafe = ToolSpecification.builder().name("unsafe").description("unsafe").build();
+
+        dispatcher.register(safe, (session, name, arguments) -> "safe", true);
+        dispatcher.register(unsafe, (session, name, arguments) -> "unsafe", false);
+
+        assertTrue(dispatcher.isConcurrencySafe("safe"));
+        assertEquals(false, dispatcher.isConcurrencySafe("unsafe"));
+    }
+
+    @Test
     void returnsOnlyNonDeferredToolsUntilSessionActivatesOne() {
         ToolDispatcher dispatcher = new ToolDispatcher();
         ToolSpecification active = ToolSpecification.builder().name("active").description("always available").build();
